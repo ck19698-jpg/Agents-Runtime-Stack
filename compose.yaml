@@ -1,0 +1,112 @@
+name: ${COMPOSE_PROJECT_NAME:-agents-runtime}
+
+services:
+  openclaw-gateway:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${TEAM_ROOT}/.env
+    environment:
+      HOME: /home/node
+      NODE_ENV: production
+      TERM: xterm-256color
+      TZ: ${TZ:-Asia/Bangkok}
+      XDG_CONFIG_HOME: /home/node/.config
+      OPENCLAW_GATEWAY_BIND: lan
+      OPENCLAW_GATEWAY_PORT: "18789"
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      GOG_KEYRING_PASSWORD: ${GOG_KEYRING_PASSWORD}
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${OPENCLAW_AUTH_PROFILE_SECRET_DIR}:/home/node/.config/openclaw
+    ports:
+      - "127.0.0.1:${OPENCLAW_HOST_PORT:-18789}:18789"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - node
+      - dist/index.js
+      - gateway
+      - --bind
+      - lan
+      - --port
+      - "18789"
+      - --allow-unconfigured
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - team-runtime
+
+  openclaw-cli:
+    image: ${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}
+    profiles: ["tools"]
+    env_file:
+      - ${TEAM_ROOT}/.env
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      TZ: ${TZ:-Asia/Bangkok}
+      XDG_CONFIG_HOME: /home/node/.config
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+    volumes:
+      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${OPENCLAW_AUTH_PROFILE_SECRET_DIR}:/home/node/.config/openclaw
+    network_mode: service:openclaw-gateway
+    depends_on:
+      openclaw-gateway:
+        condition: service_started
+    entrypoint:
+      - node
+      - dist/index.js
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - no-new-privileges:true
+
+  pi-operator:
+    build:
+      context: .
+      dockerfile: Dockerfile.pi
+    profiles: ["operator"]
+    env_file:
+      - ${TEAM_ROOT}/.env
+    environment:
+      HOME: /root
+      TERM: xterm-256color
+      TZ: ${TZ:-Asia/Bangkok}
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    volumes:
+      - ${PI_STATE_DIR}:/root/.pi/agent
+      - ${TEAM_SHARED_DIR}:/workspace
+      - ${OPENCLAW_CONFIG_DIR}:/team/openclaw
+      - ${OPENCLAW_AUTH_PROFILE_SECRET_DIR}:/team/openclaw-auth:ro
+    depends_on:
+      openclaw-gateway:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - team-runtime
+
+networks:
+  team-runtime:
+    driver: bridge
