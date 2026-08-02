@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime state
+teams/
+runtime/
+state/
+logs/
+backups/
+*.log
+*.tar
+*.tar.gz
+
+# Local tooling
+.DS_Store
+.vscode/
+.idea/
+node_modules/
