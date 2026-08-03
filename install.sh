@@ -71,7 +71,11 @@ else
   git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
-chmod +x "$INSTALL_DIR/install.sh" "$INSTALL_DIR/scripts/create-team.sh"
+chmod +x \
+  "$INSTALL_DIR/install.sh" \
+  "$INSTALL_DIR/scripts/create-team.sh" \
+  "$INSTALL_DIR/scripts/fix-team-permissions.sh" \
+  "$INSTALL_DIR/scripts/prepare-team.sh"
 
 if [[ -z "$TEAM_SLUG" ]]; then
   read -r -p "Team slug [lastcore-agency]: " TEAM_SLUG
@@ -82,7 +86,7 @@ TEAM_ROOT="${TEAM_BASE_DIR:-$HOME/teams}/$TEAM_SLUG"
 if [[ ! -f "$TEAM_ROOT/.env" ]]; then
   "$INSTALL_DIR/scripts/create-team.sh" "$TEAM_SLUG" "$OPENCLAW_HOST_PORT"
 else
-  log "Existing team configuration found at $TEAM_ROOT/.env; keeping it unchanged"
+  log "Existing team configuration found at $TEAM_ROOT/.env; preserving its values"
 fi
 
 if (( DOCKER_ACCESS_PENDING == 1 )); then
@@ -91,12 +95,16 @@ if (( DOCKER_ACCESS_PENDING == 1 )); then
 Docker was installed and your user was added to the docker group.
 Sign out and back in once, then continue with:
 
+  $INSTALL_DIR/scripts/prepare-team.sh $TEAM_SLUG
   $TEAM_ROOT/stack onboard
   $TEAM_ROOT/stack up
   $TEAM_ROOT/stack ready
 EOF
   exit 0
 fi
+
+log "Preparing team environment and permissions"
+"$INSTALL_DIR/scripts/prepare-team.sh" "$TEAM_SLUG"
 
 if [[ "$SKIP_ONBOARDING" != "1" ]]; then
   log "Starting OpenClaw onboarding for $TEAM_SLUG"
