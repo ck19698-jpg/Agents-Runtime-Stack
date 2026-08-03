@@ -28,7 +28,7 @@ command -v sudo >/dev/null 2>&1 || die "sudo is required."
 
 log "Installing base packages"
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl git openssl
+sudo apt-get install -y acl ca-certificates curl git openssl
 
 if ! command -v docker >/dev/null 2>&1; then
   log "Installing Docker Engine and Docker Compose plugin"
